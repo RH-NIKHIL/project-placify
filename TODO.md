@@ -1,0 +1,2 @@
+- [x] Edit header.jsx to add to="/contact" to the CONTACT US link in desktop nav
+- [ ] Add CONTACT US link in mobile menu with to="/contact"
