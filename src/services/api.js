@@ -441,10 +441,35 @@ export const resumeAPI = {
   }
 };
 
+// AI Chat API (Gemini backend proxy)
+export const aiAPI = {
+  chat: async (messages, token) => {
+    try {
+      const response = await fetch(`${API_URL}/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify({ messages })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        return { success: true, reply: data.reply, content: data.reply };
+      } else {
+        return { success: false, error: data.message || data.error || 'AI request failed' };
+      }
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+};
+
 export default {
   authAPI,
   userAPI,
   jobAPI,
   companyAPI,
-  resumeAPI
+  resumeAPI,
+  aiAPI
 };

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { userAPI, authAPI, jobAPI } from "../../services/api";
+import { userAPI, authAPI, jobAPI, aiAPI } from "../../services/api";
 import ResumeBuilder from "../ResumeBuilder";
 
 export default function UserDashboard() {
@@ -213,51 +213,24 @@ export default function UserDashboard() {
   };
 
   // AI Chat functions
-  const generateAIResponse = (userMessage) => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    // Simple AI responses based on keywords
-    if (lowerMessage.includes("hello") || lowerMessage.includes("hi")) {
-      return "Hello! How can I assist you today?";
-    } else if (lowerMessage.includes("how are you")) {
-      return "I'm doing great, thank you for asking! How can I help you?";
-    } else if (lowerMessage.includes("resume")) {
-      return "I can help you with resume generation! Go to the Resume Generation section to create a professional resume using our templates.";
-    } else if (lowerMessage.includes("job")) {
-      return "Looking for jobs? Check out the Job Placement section where you can find and apply for positions that match your profile.";
-    } else if (lowerMessage.includes("image")) {
-      return "You can generate images using AI in the Image Generation section. Just describe what you want to create!";
-    } else if (lowerMessage.includes("profile")) {
-      return "You can edit your profile information in the Profile section. Click 'Edit Profile' to update your details.";
-    } else if (lowerMessage.includes("leaderboard") || lowerMessage.includes("ranking")) {
-      return "Check out the Leadership Board to see top performers and rankings!";
-    } else if (lowerMessage.includes("help")) {
-      return "I can help you with:\n- Profile management\n- Resume generation\n- Job placement\n- Image generation\n- Leaderboard information\n\nWhat would you like to know more about?";
-    } else if (lowerMessage.includes("thank")) {
-      return "You're welcome! Is there anything else I can help you with?";
-    } else if (lowerMessage.includes("bye")) {
-      return "Goodbye! Feel free to come back if you need any assistance.";
-    } else {
-      return "I understand you're asking about: '" + userMessage + "'. I can assist you with profile management, resume generation, job placement, and more. How can I help you specifically?";
-    }
-  };
-
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (inputMessage.trim() === "") return;
-
-    // Add user message
     const userMsg = { role: "user", content: inputMessage };
+    const pendingInput = inputMessage;
     setMessages(prev => [...prev, userMsg]);
     setInputMessage("");
     setIsTyping(true);
-
-    // Simulate AI thinking time
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(inputMessage);
-      const aiMsg = { role: "assistant", content: aiResponse };
-      setMessages(prev => [...prev, aiMsg]);
+    try {
+      const token = localStorage.getItem('authToken');
+      const history = [...messages, userMsg];
+      const result = await aiAPI.chat(history, token);
+      const replyContent = result?.content || result?.error || 'No response';
+      setMessages(prev => [...prev, { role: 'assistant', content: replyContent }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${err.message}` }]);
+    } finally {
       setIsTyping(false);
-    }, 1000);
+    }
   };
 
   const handleKeyPress = (e) => {
