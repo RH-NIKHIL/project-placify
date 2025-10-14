@@ -10,6 +10,7 @@ const SignUp = () => {
     username: "",
     password: "",
     confirmPassword: "",
+    role: "user" // default Student
   });
 
   const [errors, setErrors] = useState({});
@@ -84,7 +85,7 @@ const SignUp = () => {
         name: formData.username, // backend expects `name`
         email: formData.email,
         password: formData.password,
-        role: "user"
+        role: formData.role
       };
 
       const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -95,7 +96,9 @@ const SignUp = () => {
 
       // On success: store token (if returned) and redirect
       if (res?.data?.token) {
-        localStorage.setItem("token", res.data.token);
+        localStorage.setItem('authToken', res.data.token);
+        if (res?.data?.user?.role) localStorage.setItem('userRole', res.data.user.role);
+        if (res?.data?.user?.id) localStorage.setItem('userId', res.data.user.id);
       }
       // Optionally show a success toast/modal — here we redirect to signin
       navigate("/signin");
@@ -214,6 +217,22 @@ const SignUp = () => {
               </button>
             </div>
             {errors.confirmPassword && <p className="text-red-500 text-sm">{errors.confirmPassword}</p>}
+          </div>
+
+          {/* Role Selection */}
+          <div className="py-2">
+            <span className="mb-2 text-md text-black">Account Type</span>
+            <select
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+              className="w-full p-2 border border-gray-300 rounded-md text-black bg-white"
+            >
+              <option value="user">Student</option>
+              <option value="company">Company</option>
+              {/* Admin role intentionally removed from public signup */}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Choose Student if you are applying for jobs; Company if you will post jobs.</p>
           </div>
 
           {/* Submit */}

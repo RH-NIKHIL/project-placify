@@ -118,6 +118,15 @@ router.post('/', authMiddleware, async (req, res) => {
     const resume = new Resume(resumeData);
     await resume.save();
 
+    // Increment user resume counters (non-blocking)
+    try {
+      const User = require('../models/User');
+      await User.findByIdAndUpdate(req.user.id, {
+        $inc: { resumesCreated: 1, score: 5 },
+        $set: { lastScoreUpdate: new Date() }
+      });
+    } catch (_) {}
+
     res.status(201).json({ 
       message: 'Resume created successfully',
       resume 

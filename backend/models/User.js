@@ -66,6 +66,22 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Gamification / activity metrics
+  aiMessages: {
+    type: Number,
+    default: 0
+  },
+  imagesGenerated: {
+    type: Number,
+    default: 0
+  },
+  resumesCreated: {
+    type: Number,
+    default: 0
+  },
+  lastScoreUpdate: {
+    type: Date
+  },
   
   // Status
   isActive: {

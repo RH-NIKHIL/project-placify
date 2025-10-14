@@ -14,6 +14,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// TEMP DEBUG: Log incoming requests to diagnose path issues (remove after fixing)
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[REQ] ${req.method} ${req.url}`);
+  }
+  next();
+});
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/user-management')
 .then(() => console.log('✅ MongoDB Connected Successfully'))
@@ -26,6 +34,7 @@ const companyRoutes = require('./routes/companies');
 const jobRoutes = require('./routes/jobs');
 const resumeRoutes = require('./routes/resumes');
 const aiRoutes = require('./routes/ai');
+const imageRoutes = require('./routes/images');
 
 // Use Routes
 app.use('/api/auth', authRoutes);
@@ -34,6 +43,7 @@ app.use('/api/companies', companyRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/resumes', resumeRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/images', imageRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

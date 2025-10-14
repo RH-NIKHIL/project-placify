@@ -210,6 +210,46 @@ router.post('/:id/apply', authMiddleware, async (req, res) => {
   }
 });
 
+// Get applications of the authenticated user with job + status info
+router.get('/applications/mine', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'user') {
+      return res.status(403).json({ message: 'Only users can view their applications' });
+    }
+
+    // Find jobs where this user has an application
+    const jobs = await Job.find({ 'applications.user': req.user.id })
+      .select('title companyName location jobType experienceLevel applications createdAt')
+      .sort({ createdAt: -1 });
+
+    // Flatten applications belonging to the user
+    const applications = [];
+    jobs.forEach(job => {
+      job.applications.forEach(app => {
+        if (String(app.user) === req.user.id) {
+          applications.push({
+            jobId: job._id,
+            jobTitle: job.title,
+            companyName: job.companyName,
+            location: job.location,
+            jobType: job.jobType,
+            experienceLevel: job.experienceLevel,
+            applicationId: app._id,
+            status: app.status,
+            appliedAt: app.appliedAt,
+            resume: app.resume || null,
+            coverLetter: app.coverLetter || null
+          });
+        }
+      });
+    });
+
+    res.json({ count: applications.length, applications });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Update application status (Company/Admin only)
 router.put('/:jobId/applications/:applicationId', authMiddleware, async (req, res) => {
   try {

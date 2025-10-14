@@ -9,7 +9,7 @@ router.post('/register', [
   body('name').notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('role').isIn(['user', 'admin', 'company']).withMessage('Invalid role')
+  body('role').isIn(['user', 'company']).withMessage('Invalid role (must be user or company)')
 ], async (req, res) => {
   try {
     // Validate input
@@ -62,7 +62,8 @@ router.post('/register', [
 // Login user
 router.post('/login', [
   body('email').isEmail().withMessage('Valid email is required'),
-  body('password').notEmpty().withMessage('Password is required')
+  body('password').notEmpty().withMessage('Password is required'),
+  body('role').optional().isIn(['user','company']).withMessage('Invalid role provided')
 ], async (req, res) => {
   try {
     // Validate input
@@ -71,7 +72,7 @@ router.post('/login', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password } = req.body;
+  const { email, password, role: requestedRole } = req.body;
 
     // Find user
     const user = await User.findOne({ email });
@@ -83,6 +84,11 @@ router.post('/login', [
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    // If client supplied a role, ensure it matches stored role
+    if (requestedRole && requestedRole !== user.role) {
+      return res.status(403).json({ message: 'Role mismatch for this account' });
     }
 
     // Update last login

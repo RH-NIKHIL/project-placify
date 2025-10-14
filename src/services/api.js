@@ -18,7 +18,7 @@ const getAuthHeaders = () => {
 // Authentication APIs
 export const authAPI = {
   // Login
-  login: async (email, password) => {
+  login: async (email, password, role) => {
     try {
       console.log('🔄 Attempting login to:', `${API_URL}/auth/login`);
       
@@ -28,7 +28,7 @@ export const authAPI = {
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(role ? { email, password, role } : { email, password }),
         signal: controller.signal
       });
       
@@ -184,6 +184,36 @@ export const userAPI = {
     } catch (error) {
       return { success: false, error: 'Network error. Please try again.' };
     }
+  },
+
+  // Suspend user (Admin only)
+  suspendUser: async (userId) => {
+    try {
+      const response = await fetch(`${API_URL}/users/${userId}/suspend`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (response.ok) return { success: true, data: data.user };
+      return { success: false, error: data.message };
+    } catch (e) {
+      return { success: false, error: 'Network error.' };
+    }
+  },
+
+  // Unsuspend user (Admin only)
+  unsuspendUser: async (userId) => {
+    try {
+      const response = await fetch(`${API_URL}/users/${userId}/unsuspend`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (response.ok) return { success: true, data: data.user };
+      return { success: false, error: data.message };
+    } catch (e) {
+      return { success: false, error: 'Network error.' };
+    }
   }
 };
 
@@ -282,6 +312,42 @@ export const jobAPI = {
     } catch (error) {
       return { success: false, error: 'Network error. Please try again.' };
     }
+  }
+};
+
+// User job applications (new)
+jobAPI.getMyApplications = async () => {
+  try {
+    const response = await fetch(`${API_URL}/jobs/applications/mine`, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json();
+    if (response.ok) {
+      return { success: true, data: data.applications };
+    } else {
+      return { success: false, error: data.message };
+    }
+  } catch (error) {
+    return { success: false, error: 'Network error. Please try again.' };
+  }
+};
+
+// Update application status (company/admin)
+jobAPI.updateApplicationStatus = async (jobId, applicationId, status) => {
+  try {
+    const response = await fetch(`${API_URL}/jobs/${jobId}/applications/${applicationId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status })
+    });
+    const data = await response.json();
+    if (response.ok) {
+      return { success: true, data: data.application };
+    } else {
+      return { success: false, error: data.message };
+    }
+  } catch (error) {
+    return { success: false, error: 'Network error. Please try again.' };
   }
 };
 
@@ -465,11 +531,63 @@ export const aiAPI = {
   }
 };
 
+// Image Generation API
+export const imageAPI = {
+  generate: async (prompt, token) => {
+    try {
+      const response = await fetch(`${API_URL}/images/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
+        body: JSON.stringify({ prompt })
+      });
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await response.text();
+        return { success: false, error: `Non-JSON response (content-type: ${contentType}). First chars: ${text.slice(0,120)}` };
+      }
+      const data = await response.json();
+      if (response.ok) {
+        return { success: true, image: data.image || data.svg };
+      } else {
+        return { success: false, error: data.message || 'Image generation failed' };
+      }
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+};
+
+// Pollinations image generation (URL based)
+imageAPI.generatePollinations = async (prompt, token) => {
+  try {
+    const response = await fetch(`${API_URL}/images/pollinations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` })
+      },
+      body: JSON.stringify({ prompt })
+    });
+    const data = await response.json();
+    if (response.ok) {
+      return { success: true, image: data.imageUrl };
+    } else {
+      return { success: false, error: data.message || 'Pollinations generation failed' };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
 export default {
   authAPI,
   userAPI,
   jobAPI,
   companyAPI,
   resumeAPI,
-  aiAPI
+  aiAPI,
+  imageAPI
 };

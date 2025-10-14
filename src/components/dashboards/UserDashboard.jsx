@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { userAPI, authAPI, jobAPI, aiAPI } from "../../services/api";
+import { userAPI, authAPI, jobAPI, aiAPI, imageAPI } from "../../services/api";
 import ResumeBuilder from "../ResumeBuilder";
 
 export default function UserDashboard() {
@@ -26,7 +26,11 @@ export default function UserDashboard() {
 
   const [editProfile, setEditProfile] = useState({ ...profile });
   const [jobs, setJobs] = useState([]);
+  const [myApplications, setMyApplications] = useState([]);
+  const [showApplicationsPanel, setShowApplicationsPanel] = useState(false);
+  const applicationsPollMs = 20000; // 20s polling when panel visible
   const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboardRefreshTick, setLeaderboardRefreshTick] = useState(0);
 
   // AI Chat state
   const [messages, setMessages] = useState([
@@ -34,6 +38,7 @@ export default function UserDashboard() {
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const leaderboardRefreshIntervalMs = 15000; // 15s live updates
 
   // Job Application state
   const [showApplicationModal, setShowApplicationModal] = useState(false);
@@ -49,6 +54,15 @@ export default function UserDashboard() {
     loadUserProfile();
     loadJobs();
     loadLeaderboard();
+  }, []);
+
+  // Periodic leaderboard refresh
+  useEffect(() => {
+    const id = setInterval(() => {
+      loadLeaderboard();
+      setLeaderboardRefreshTick(t => t + 1);
+    }, leaderboardRefreshIntervalMs);
+    return () => clearInterval(id);
   }, []);
 
   const loadUserProfile = async () => {
@@ -102,6 +116,25 @@ export default function UserDashboard() {
       setJobs(sortedJobs);
     }
   };
+
+  const loadMyApplications = async () => {
+    const result = await jobAPI.getMyApplications();
+    if (result && result.success) {
+      // Sort by appliedAt desc
+      const sorted = result.data.sort((a,b) => new Date(b.appliedAt) - new Date(a.appliedAt));
+      setMyApplications(sorted);
+    }
+  };
+
+  // Poll applications when panel visible & job-placement active
+  useEffect(() => {
+    if (activeSection !== 'job-placement' || !showApplicationsPanel) return;
+    loadMyApplications();
+    const id = setInterval(() => {
+      loadMyApplications();
+    }, applicationsPollMs);
+    return () => clearInterval(id);
+  }, [activeSection, showApplicationsPanel]);
 
   const loadLeaderboard = async () => {
     const result = await userAPI.getLeaderboard();
@@ -226,11 +259,17 @@ export default function UserDashboard() {
       const result = await aiAPI.chat(history, token);
       const replyContent = result?.content || result?.error || 'No response';
       setMessages(prev => [...prev, { role: 'assistant', content: replyContent }]);
+      // Trigger leaderboard refresh sooner after AI usage
+      loadLeaderboard();
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${err.message}` }]);
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const handleClearChat = () => {
+    setMessages([{ role: 'assistant', content: "Chat cleared. I'm ready for a new conversation. How can I help?" }]);
   };
 
   const handleKeyPress = (e) => {
@@ -280,6 +319,108 @@ export default function UserDashboard() {
       setIsApplying(false);
     }
   };
+
+  // Image generation state & logic
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [generatedImage, setGeneratedImage] = useState(null); // can be data URL or raw SVG
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [imageError, setImageError] = useState(null);
+  const [imageProvider, setImageProvider] = useState('gemini'); // 'gemini' | 'pollinations'
+
+  const handleGenerateImage = async () => {
+    if (!imagePrompt.trim()) return;
+    setIsGeneratingImage(true);
+    setImageError(null);
+    setGeneratedImage(null);
+    try {
+      const token = localStorage.getItem('authToken');
+      let result;
+      if (imageProvider === 'pollinations') {
+        result = await imageAPI.generatePollinations(imagePrompt.trim(), token);
+      } else {
+        result = await imageAPI.generate(imagePrompt.trim(), token);
+      }
+      if (result.success) {
+        setGeneratedImage(result.image);
+        // refresh leaderboard due to scoring
+        loadLeaderboard();
+      } else {
+        setImageError(result.error || 'Generation failed');
+      }
+    } catch (err) {
+      setImageError(err.message);
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
+  const renderImageGeneration = () => (
+    <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+      <h2 className="text-2xl font-bold mb-4">🎨 Image Generation</h2>
+      <p className="text-gray-400 mb-6">Generate AI-powered images for your projects. Each image grants points.</p>
+      <div className="space-y-4">
+        <textarea
+          value={imagePrompt}
+          onChange={e => setImagePrompt(e.target.value)}
+          placeholder="Describe the image you want to generate (e.g., 'A minimalist flat icon of a resume with gradient background')."
+          className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white h-32 focus:outline-none focus:border-purple-500"
+        />
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-400 font-medium">Provider:</label>
+            <select
+              value={imageProvider}
+              onChange={e => setImageProvider(e.target.value)}
+              className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-purple-500"
+            >
+              <option value="gemini">Gemini (SVG / Sanitized)</option>
+              <option value="pollinations">Pollinations (External Image)</option>
+            </select>
+          </div>
+          {imageProvider === 'pollinations' && (
+            <p className="text-xs text-amber-400 max-w-md">Images fetched from pollinations.ai (public service). Avoid sensitive or private data in prompts.</p>
+          )}
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={handleGenerateImage}
+            disabled={!imagePrompt.trim() || isGeneratingImage}
+            className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isGeneratingImage && (
+              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            )}
+            {isGeneratingImage ? 'Generating...' : 'Generate Image'}
+          </button>
+          <button
+            onClick={() => { setImagePrompt(''); setGeneratedImage(null); setImageError(null); }}
+            className="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+          >
+            Reset
+          </button>
+        </div>
+        {imageError && <p className="text-red-400 text-sm">{imageError}</p>}
+        <div className="bg-gray-700 p-6 rounded-lg text-center min-h-64 flex items-center justify-center overflow-auto">
+          {generatedImage ? (
+            generatedImage.startsWith('<svg') ? (
+              <div
+                className="max-h-96"
+                dangerouslySetInnerHTML={{ __html: generatedImage }}
+              />
+            ) : (
+              <img src={generatedImage} alt="Generated" className="max-h-96 rounded shadow-lg" />
+            )
+          ) : (
+            <p className="text-gray-400">Your generated image will appear here</p>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 mt-4">Usage costs and moderation handled server-side. Do not include sensitive personal data.</p>
+    </div>
+  );
 
   const renderContent = () => {
     switch (activeSection) {
@@ -449,7 +590,19 @@ export default function UserDashboard() {
       case "ai-assistant":
         return (
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg h-full flex flex-col">
-            <h2 className="text-2xl font-bold mb-4">AI Assistant</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">AI Assistant</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleClearChat}
+                  disabled={messages.length <= 1}
+                  className="px-3 py-2 text-sm rounded-lg bg-gray-700 hover:bg-gray-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Clear conversation"
+                >
+                  Clear Chat
+                </button>
+              </div>
+            </div>
             <p className="text-gray-400 mb-6">Get help with your queries using our AI-powered assistant.</p>
             
             {/* Chat Messages */}
@@ -529,24 +682,7 @@ export default function UserDashboard() {
         );
 
       case "image-generation":
-        return (
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Image Generation</h2>
-            <p className="text-gray-400 mb-6">Generate images using AI based on your descriptions.</p>
-            <div className="space-y-4">
-              <textarea
-                placeholder="Describe the image you want to generate..."
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white h-32"
-              />
-              <button className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg transition">
-                Generate Image
-              </button>
-              <div className="bg-gray-700 p-8 rounded-lg text-center min-h-64 flex items-center justify-center">
-                <p className="text-gray-400">Your generated image will appear here</p>
-              </div>
-            </div>
-          </div>
-        );
+        return renderImageGeneration();
 
       case "resume-generation":
         // Use the unified, fully-featured ResumeBuilder component
@@ -559,6 +695,16 @@ export default function UserDashboard() {
               <div>
                 <h2 className="text-2xl font-bold">Job Placement</h2>
                 <p className="text-gray-400 mt-1">Find and apply for jobs that match your profile.</p>
+                <div className="mt-2 flex gap-3 flex-wrap">
+                  <button
+                    onClick={() => { loadJobs(); }}
+                    className="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full transition"
+                  >Refresh Jobs</button>
+                  <button
+                    onClick={() => { loadMyApplications(); setShowApplicationsPanel(v=>!v); }}
+                    className="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full transition"
+                  >{showApplicationsPanel ? 'Hide' : 'Show'} My Applications</button>
+                </div>
               </div>
               <button
                 onClick={loadJobs}
@@ -576,6 +722,59 @@ export default function UserDashboard() {
               </div>
             ) : (
               <div className="space-y-4">
+              {showApplicationsPanel && (
+                <div className="bg-gray-700 p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-xl font-semibold">My Applications</h3>
+                    <button
+                      onClick={loadMyApplications}
+                      className="text-xs bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-full"
+                    >Refresh</button>
+                  </div>
+                  <div className="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6 text-xs">
+                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-yellow-600"></span><span>Pending</span></div>
+                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-indigo-600"></span><span>Reviewed</span></div>
+                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-purple-600"></span><span>Shortlisted</span></div>
+                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-600"></span><span>Rejected</span></div>
+                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-600"></span><span>Accepted</span></div>
+                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-gray-600"></span><span>Other</span></div>
+                  </div>
+                  {myApplications.length === 0 ? (
+                    <p className="text-gray-400 text-sm">You have not applied for any jobs yet.</p>
+                  ) : (
+                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                      {myApplications.map(app => {
+                        const statusColors = {
+                          pending: 'bg-yellow-600',
+                          reviewed: 'bg-indigo-600',
+                          shortlisted: 'bg-purple-600',
+                          rejected: 'bg-red-600',
+                          accepted: 'bg-green-600'
+                        };
+                        const badgeClass = statusColors[app.status] || 'bg-gray-600';
+                        const displayLabel = status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'Other';
+                        return (
+                          <div key={app.applicationId} className="bg-gray-800 p-4 rounded-lg flex flex-col md:flex-row md:items-center md:justify-between gap-3 border border-gray-700">
+                            <div>
+                              <h4 className="font-semibold text-lg">{app.jobTitle}</h4>
+                              <p className="text-sm text-blue-400 font-medium">{app.companyName}</p>
+                              <div className="flex flex-wrap gap-4 text-xs text-gray-400 mt-2">
+                                <span>📍 {app.location}</span>
+                                <span>🕒 Applied {new Date(app.appliedAt).toLocaleDateString()}</span>
+                                <span>💼 {app.jobType}</span>
+                                <span>📊 {app.experienceLevel}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${badgeClass}`} aria-label={`Status: ${displayLabel}`}>{displayLabel}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               {jobs.length > 0 ? (
                 jobs.map((job) => (
                   <div key={job._id} className="bg-gray-700 p-6 rounded-lg hover:bg-gray-600 transition">
@@ -586,6 +785,27 @@ export default function UserDashboard() {
                           <span className="bg-green-600 px-3 py-1 rounded-full text-xs font-semibold">
                             {job.jobType}
                           </span>
+                          {(() => {
+                            // Determine current user's application status for this job
+                            const userId = profile._id || localStorage.getItem('userId');
+                            let status = null;
+                            if (job.applications && userId) {
+                              const app = job.applications.find(a => a.user && (a.user._id === userId || a.user === userId));
+                              if (app) status = app.status;
+                            }
+                            if (!status) return null;
+                            const statusColors = {
+                              pending: 'bg-yellow-600',
+                              reviewed: 'bg-indigo-600',
+                              shortlisted: 'bg-purple-600',
+                              rejected: 'bg-red-600',
+                              accepted: 'bg-green-600'
+                            };
+                            const cls = statusColors[status] || 'bg-gray-600';
+                            return (
+                              <span className={`${cls} px-3 py-1 rounded-full text-xs font-semibold`}>{status}</span>
+                            );
+                          })()}
                         </div>
                         <p className="text-blue-400 font-semibold mb-2">{job.companyName}</p>
                         <div className="flex flex-wrap gap-4 text-sm text-gray-300 mb-3">
@@ -651,7 +871,8 @@ export default function UserDashboard() {
         return (
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
             <h2 className="text-2xl font-bold mb-4">Leadership Board</h2>
-            <p className="text-gray-400 mb-6">Top performers and rankings.</p>
+            <p className="text-gray-400 mb-2">Top performers and rankings (auto refresh every 15s).</p>
+            <p className="text-gray-500 text-xs mb-6">Refreshed ticks: {leaderboardRefreshTick}</p>
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -699,16 +920,7 @@ export default function UserDashboard() {
         return <ResumeBuilder />;
 
       case "image-generation":
-        return (
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">🎨 Image Generation</h2>
-            <p className="text-gray-400 mb-6">Generate AI-powered images for your projects.</p>
-            <div className="text-center py-12">
-              <p className="text-gray-400 text-lg">Coming Soon!</p>
-              <p className="text-gray-500 text-sm mt-2">AI image generation feature will be available soon.</p>
-            </div>
-          </div>
-        );
+        return renderImageGeneration();
 
       default:
         return null;

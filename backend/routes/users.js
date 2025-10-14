@@ -100,6 +100,45 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Suspend / Unsuspend user (Admin only)
+router.post('/:id/suspend', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.isActive = false;
+    await user.save();
+    res.json({ message: 'User suspended', user: user.toJSON() });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/:id/unsuspend', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.isActive = true;
+    await user.save();
+    res.json({ message: 'User unsuspended', user: user.toJSON() });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Get leaderboard
 router.get('/leaderboard/top', async (req, res) => {
   try {
@@ -109,6 +148,21 @@ router.get('/leaderboard/top', async (req, res) => {
       .limit(10);
 
     res.json({ leaderboard: topUsers });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Reset leaderboard (admin only): zero score & activity counters
+router.post('/leaderboard/reset', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+    const result = await User.updateMany({ role: 'user' }, {
+      $set: { score: 0, aiMessages: 0, imagesGenerated: 0, resumesCreated: 0, lastScoreUpdate: null }
+    });
+    res.json({ message: 'Leaderboard reset', modified: result.modifiedCount });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

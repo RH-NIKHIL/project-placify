@@ -36,7 +36,7 @@ const SignIn = () => {
       console.log("🔑 Logging in with:", email);
       
       // Call login API
-      const result = await authAPI.login(email, password);
+  const result = await authAPI.login(email, password);
 
       if (result.success) {
         const { user, token } = result.data;
@@ -163,6 +163,7 @@ const SignIn = () => {
               required
             />
           </div>
+
 
           {/* Remember Me & Forgot Password */}
           <div className="flex justify-between items-center mb-6">

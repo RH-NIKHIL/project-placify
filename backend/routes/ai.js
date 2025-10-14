@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 // Preferred model hierarchy (will attempt first configured, then fallbacks)
 const PREFERRED_MODELS = [
@@ -61,7 +63,17 @@ router.post('/chat', async (req, res) => {
       return res.status(500).json({ message: 'GEMINI_API_KEY not configured on server' });
     }
 
-  const { messages, forceModel } = req.body;
+    const { messages, forceModel } = req.body;
+
+    // Optional auth to attribute usage (silent if fails)
+    let authedUser = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
+        authedUser = await User.findById(decoded.id).select('_id aiMessages score');
+      } catch (_) {}
+    }
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ message: 'messages array required' });
     }
@@ -85,6 +97,13 @@ router.post('/chat', async (req, res) => {
         const model = genAI.getGenerativeModel({ model: candidate });
         const result = await model.generateContent(prompt);
         const reply = result?.response?.text?.() || '(No response)';
+        if (authedUser) {
+          authedUser.aiMessages += 1;
+          // Simple scoring: +1 per AI message use
+          authedUser.score += 1;
+          authedUser.lastScoreUpdate = new Date();
+          authedUser.save().catch(()=>{});
+        }
         return res.json({ message: 'ok', model: candidate, forced: !!forceModel, reply });
       } catch (err) {
         lastErr = err;
@@ -109,6 +128,12 @@ router.post('/chat', async (req, res) => {
           const model = genAI.getGenerativeModel({ model: preferredId });
           const result = await model.generateContent(prompt);
           const reply = result?.response?.text?.() || '(No response)';
+          if (authedUser) {
+            authedUser.aiMessages += 1;
+            authedUser.score += 1;
+            authedUser.lastScoreUpdate = new Date();
+            authedUser.save().catch(()=>{});
+          }
           return res.json({ message: 'ok', model: preferredId, modelFull: preferredFull, discovered: true, attempts, reply });
         } catch (err2) {
           lastErr = err2;

@@ -117,25 +117,21 @@ export default function CompanyDashboard() {
 
   const handleUpdateApplicationStatus = async (jobId, applicationId, newStatus) => {
     try {
-      // For now, update locally - you can add API call later
-      const updatedJobs = jobs.map(job => {
-        if (job._id === jobId) {
-          return {
-            ...job,
-            applications: job.applications.map(app => 
-              app._id === applicationId ? { ...app, status: newStatus } : app
-            )
-          };
-        }
-        return job;
-      });
-      setJobs(updatedJobs);
-      
-      // Optional: Show success message
-      console.log(`Application ${applicationId} status updated to ${newStatus}`);
+      const resp = await jobAPI.updateApplicationStatus(jobId, applicationId, newStatus);
+      if (resp.success) {
+        // Update local state optimistically
+        setJobs(prev => prev.map(job => job._id === jobId ? {
+          ...job,
+          applications: job.applications.map(app => app._id === applicationId ? { ...app, status: newStatus } : app)
+        } : job));
+        // Reload jobs to sync any server-side changes
+        loadJobs();
+      } else {
+        alert(resp.error || 'Failed to update status');
+      }
     } catch (error) {
-      console.error("Error updating application status:", error);
-      alert("Failed to update application status.");
+      console.error('Error updating application status:', error);
+      alert('Failed to update application status.');
     }
   };
 
