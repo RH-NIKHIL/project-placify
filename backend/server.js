@@ -15,10 +15,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/user-management', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/user-management')
 .then(() => console.log('✅ MongoDB Connected Successfully'))
 .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
@@ -27,12 +24,14 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const companyRoutes = require('./routes/companies');
 const jobRoutes = require('./routes/jobs');
+const resumeRoutes = require('./routes/resumes');
 
 // Use Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/resumes', resumeRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

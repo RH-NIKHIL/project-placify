@@ -20,24 +20,44 @@ export const authAPI = {
   // Login
   login: async (email, password) => {
     try {
+      console.log('🔄 Attempting login to:', `${API_URL}/auth/login`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
+      
       const data = await response.json();
       
       if (response.ok) {
+        console.log('✅ Login successful:', data);
         // Store token and user data
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('userRole', data.user.role);
         localStorage.setItem('userId', data.user.id);
         return { success: true, data };
       } else {
+        console.log('❌ Login failed:', data.message);
         return { success: false, error: data.message };
       }
     } catch (error) {
-      return { success: false, error: 'Network error. Please try again.' };
+      console.error('❌ Network error:', error);
+      
+      if (error.name === 'AbortError') {
+        return { success: false, error: 'Request timeout. Please check if the backend server is running on port 5000.' };
+      }
+      
+      return { 
+        success: false, 
+        error: `Network error. Please ensure:\n1. Backend server is running on http://localhost:5000\n2. MongoDB is connected\n3. Your internet connection is stable\n\nError: ${error.message}` 
+      };
     }
   },
 
@@ -286,9 +306,145 @@ export const companyAPI = {
   }
 };
 
+// Resume APIs
+export const resumeAPI = {
+  // Get all resumes
+  getAllResumes: async () => {
+    try {
+      const response = await fetch(`${API_URL}/resumes`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data.resumes };
+      } else {
+        return { success: false, error: data.message };
+      }
+    } catch (error) {
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  },
+
+  // Get resume by ID
+  getResume: async (resumeId) => {
+    try {
+      const response = await fetch(`${API_URL}/resumes/${resumeId}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data.resume };
+      } else {
+        return { success: false, error: data.message, details: data.details };
+      }
+    } catch (error) {
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  },
+
+  // Create resume
+  createResume: async (resumeData) => {
+    try {
+      const response = await fetch(`${API_URL}/resumes`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(resumeData)
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data.resume };
+      } else {
+        return { success: false, error: data.message, details: data.details };
+      }
+    } catch (error) {
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  },
+
+  // Update resume
+  updateResume: async (resumeId, resumeData) => {
+    try {
+      const response = await fetch(`${API_URL}/resumes/${resumeId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(resumeData)
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data.resume };
+      } else {
+        return { success: false, error: data.message };
+      }
+    } catch (error) {
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  },
+
+  // Delete resume
+  deleteResume: async (resumeId) => {
+    try {
+      const response = await fetch(`${API_URL}/resumes/${resumeId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data };
+      } else {
+        return { success: false, error: data.message };
+      }
+    } catch (error) {
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  },
+
+  // Match resume with job
+  matchResumeWithJob: async (resumeId, jobId) => {
+    try {
+      const response = await fetch(`${API_URL}/resumes/${resumeId}/match-job/${jobId}`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data };
+      } else {
+        return { success: false, error: data.message };
+      }
+    } catch (error) {
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  },
+
+  // Get matches for a resume
+  getResumeMatches: async (resumeId) => {
+    try {
+      const response = await fetch(`${API_URL}/resumes/${resumeId}/matches`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        return { success: true, data: data.matches };
+      } else {
+        return { success: false, error: data.message };
+      }
+    } catch (error) {
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  }
+};
+
 export default {
   authAPI,
   userAPI,
   jobAPI,
-  companyAPI
+  companyAPI,
+  resumeAPI
 };

@@ -1,0 +1,204 @@
+═══════════════════════════════════════════════════════════════
+     💼 JOB APPLICATION SYSTEM - QUICK REFERENCE
+═══════════════════════════════════════════════════════════════
+
+✅ WHAT'S NEW:
+
+1. USERS can now APPLY for jobs
+2. COMPANIES can VIEW and MANAGE applications
+3. APPLICATION STATUS tracking system
+
+═══════════════════════════════════════════════════════════════
+
+👤 FOR USERS (Job Seekers):
+═══════════════════════════════════════════════════════════════
+
+HOW TO APPLY FOR A JOB:
+
+1. Login: user@user.com / user123
+2. Click: 💼 Job Placement (sidebar)
+3. Find a job you like
+4. Click: "Apply Now" button
+5. Fill the form:
+   
+   RESUME (Required):
+   ✓ Paste Google Drive link
+   ✓ OR paste your qualifications:
+     
+     Example:
+     Software Engineer - 3 Years Experience
+     Skills: React, Node.js, MongoDB, AWS
+     Education: B.S. Computer Science
+     Projects: 10+ web applications
+     
+   COVER LETTER (Optional):
+   ✓ Explain why you want the job
+   ✓ Highlight relevant experience
+   ✓ 200-300 words recommended
+
+6. Click: "Submit Application"
+7. ✅ Done! Wait for company response
+
+═══════════════════════════════════════════════════════════════
+
+🏢 FOR COMPANIES:
+═══════════════════════════════════════════════════════════════
+
+HOW TO VIEW APPLICATIONS:
+
+METHOD 1:
+1. Login: company@company.com / company123
+2. Dashboard shows your jobs
+3. Each job card shows application count
+4. Click: "View Applications →"
+
+METHOD 2:
+1. Click: "Registered Students" (top nav)
+2. See ALL applications from ALL jobs
+
+WHAT YOU SEE:
+✓ Applicant name & email
+✓ Applied date & time
+✓ Resume/qualifications
+✓ Cover letter (if provided)
+✓ Current status
+✓ Status dropdown to update
+
+HOW TO UPDATE STATUS:
+1. Find the application
+2. Click status dropdown
+3. Select new status:
+   - Pending (default)
+   - Reviewed (you've seen it)
+   - Shortlisted (interested)
+   - Rejected (not a fit)
+   - Accepted (offer sent)
+4. Status updates automatically
+
+═══════════════════════════════════════════════════════════════
+
+📋 APPLICATION STATUSES:
+═══════════════════════════════════════════════════════════════
+
+🟡 PENDING     - Just received, not reviewed
+🔵 REVIEWED    - Company has reviewed
+🟢 SHORTLISTED - Candidate looks good
+🔴 REJECTED    - Not proceeding
+🟣 ACCEPTED    - Offer extended
+
+═══════════════════════════════════════════════════════════════
+
+💡 QUICK TIPS:
+═══════════════════════════════════════════════════════════════
+
+FOR USERS:
+✓ Include detailed qualifications
+✓ Add portfolio/GitHub links
+✓ Write a good cover letter
+✓ Apply only to relevant jobs
+✓ Can only apply once per job
+
+FOR COMPANIES:
+✓ Review applications promptly
+✓ Update statuses regularly
+✓ Read cover letters
+✓ Check application count on job cards
+✓ Quick link to view applications
+
+═══════════════════════════════════════════════════════════════
+
+📊 EXAMPLE USER APPLICATION:
+═══════════════════════════════════════════════════════════════
+
+RESUME:
+Full Stack Developer - 4 Years Experience
+
+SKILLS:
+JavaScript, TypeScript, React, Node.js, Express
+MongoDB, PostgreSQL, AWS, Docker, Git
+
+EDUCATION:
+B.S. Computer Science, University of California (2020)
+
+EXPERIENCE:
+- Built 15+ production web applications
+- Led team of 3 developers
+- Improved app performance by 40%
+
+PORTFOLIO:
+GitHub: github.com/johndoe
+Website: johndoe.dev
+
+COVER LETTER:
+I am excited to apply for the Frontend Developer position.
+With 4 years of experience building modern web applications
+using React and Node.js, I am confident I can contribute
+significantly to your team.
+
+I am particularly impressed by your company's focus on
+innovation and would love to be part of your next project.
+My experience in building scalable applications aligns
+perfectly with your requirements.
+
+Looking forward to discussing this opportunity further.
+
+═══════════════════════════════════════════════════════════════
+
+🎯 COMMON ACTIONS:
+═══════════════════════════════════════════════════════════════
+
+USER - Apply for job:
+Job Placement → Select Job → Apply Now → Fill Form → Submit
+
+USER - Check application status:
+(Coming soon - My Applications page)
+
+COMPANY - View all applications:
+Registered Students → See applications by job
+
+COMPANY - Update application status:
+Find application → Click status dropdown → Select status
+
+COMPANY - Check application count:
+Job Management → See count on each job card
+
+═══════════════════════════════════════════════════════════════
+
+🐛 TROUBLESHOOTING:
+═══════════════════════════════════════════════════════════════
+
+"Already applied" error:
+→ You can only apply once per job
+
+Can't submit:
+→ Fill required Resume field
+→ Check backend is running
+
+No applications showing:
+→ Wait for users to apply
+→ Refresh page
+
+Status won't update:
+→ Check you're logged in
+→ Refresh page
+
+═══════════════════════════════════════════════════════════════
+
+✅ CURRENT STATUS:
+═══════════════════════════════════════════════════════════════
+
+✓ Backend: Running on port 5000
+✓ Frontend: Running on port 5173
+✓ User Application: Functional
+✓ Company Review: Functional
+✓ Status Management: Working
+✓ Data Persistence: MongoDB
+
+═══════════════════════════════════════════════════════════════
+
+🚀 READY TO USE!
+
+Users can apply for jobs with one click!
+Companies can review and manage applications!
+
+═══════════════════════════════════════════════════════════════

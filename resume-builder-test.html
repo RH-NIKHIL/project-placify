@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Builder - Test Page</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #ffffff;
+        }
+        .container {
+            background: #2d2d2d;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #60a5fa;
+            margin-top: 0;
+        }
+        h2 {
+            color: #34d399;
+            border-bottom: 2px solid #34d399;
+            padding-bottom: 10px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+        }
+        button.success {
+            background: #10b981;
+        }
+        button.danger {
+            background: #ef4444;
+        }
+        .result {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            border-left: 4px solid #60a5fa;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .success-box {
+            border-left-color: #10b981;
+            background: #064e3b;
+        }
+        .error-box {
+            border-left-color: #ef4444;
+            background: #7f1d1d;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #4b5563;
+            border-radius: 6px;
+            color: white;
+            font-family: inherit;
+            margin-top: 5px;
+            margin-bottom: 15px;
+        }
+        label {
+            color: #9ca3af;
+            font-size: 14px;
+            display: block;
+            margin-top: 10px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.online {
+            background: #10b981;
+            color: white;
+        }
+        .status.offline {
+            background: #ef4444;
+            color: white;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Resume Builder - Test Page</h1>
+        <p>This page helps you test if the Resume Builder is working correctly.</p>
+        <div>
+            <strong>Backend:</strong> <span class="status" id="backendStatus">Checking...</span>
+            <strong style="margin-left: 20px;">Auth:</strong> <span class="status" id="authStatus">Checking...</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>1️⃣ Authentication</h2>
+        <p>First, login to get authentication token:</p>
+        
+        <label>Email:</label>
+        <input type="email" id="loginEmail" value="user@user.com" placeholder="user@user.com">
+        
+        <label>Password:</label>
+        <input type="password" id="loginPassword" value="user123" placeholder="user123">
+        
+        <button onclick="testLogin()">🔐 Login</button>
+        <button onclick="checkAuth()" class="success">✅ Check Auth</button>
+        
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>2️⃣ Get All Resumes</h2>
+        <p>Fetch all resumes for the logged-in user:</p>
+        
+        <button onclick="getAllResumes()">📄 Get All Resumes</button>
+        
+        <div id="getAllResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>3️⃣ Create New Resume</h2>
+        <p>Create a sample resume:</p>
+        
+        <div class="grid">
+            <div>
+                <label>Resume Name:</label>
+                <input type="text" id="resumeName" value="Test Resume - Software Engineer" placeholder="My Resume">
+                
+                <label>Your Name:</label>
+                <input type="text" id="userName" value="John Doe" placeholder="John Doe">
+                
+                <label>Email:</label>
+                <input type="email" id="userEmail" value="john.doe@email.com" placeholder="john@email.com">
+                
+                <label>Phone:</label>
+                <input type="tel" id="userPhone" value="+1 (555) 123-4567" placeholder="+1 555-1234">
+            </div>
+            <div>
+                <label>Location:</label>
+                <input type="text" id="userLocation" value="San Francisco, CA" placeholder="City, State">
+                
+                <label>LinkedIn:</label>
+                <input type="url" id="userLinkedin" value="https://linkedin.com/in/johndoe" placeholder="LinkedIn URL">
+                
+                <label>GitHub:</label>
+                <input type="url" id="userGithub" value="https://github.com/johndoe" placeholder="GitHub URL">
+            </div>
+        </div>
+        
+        <label>Professional Summary:</label>
+        <textarea id="userSummary" rows="3" placeholder="Brief professional summary...">Full-stack developer with 4+ years of experience. Expert in React and Node.js.</textarea>
+        
+        <label>Technical Skills (comma-separated):</label>
+        <input type="text" id="technicalSkills" value="JavaScript, TypeScript, React, Node.js, MongoDB" placeholder="JavaScript, React, Node.js">
+        
+        <label>Tools (comma-separated):</label>
+        <input type="text" id="toolsSkills" value="Git, Docker, AWS, VS Code" placeholder="Git, Docker, AWS">
+        
+        <label>Soft Skills (comma-separated):</label>
+        <input type="text" id="softSkills" value="Problem Solving, Communication, Leadership" placeholder="Communication, Leadership">
+        
+        <button onclick="createResume()" class="success">✨ Create Resume</button>
+        
+        <div id="createResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>4️⃣ Get All Jobs</h2>
+        <p>Fetch available jobs for matching:</p>
+        
+        <button onclick="getAllJobs()">💼 Get All Jobs</button>
+        
+        <div id="jobsResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>5️⃣ Match Resume with Job</h2>
+        <p>Test the job matching algorithm:</p>
+        
+        <label>Resume ID:</label>
+        <input type="text" id="matchResumeId" placeholder="Paste resume ID from step 2 or 3">
+        
+        <label>Job ID:</label>
+        <input type="text" id="matchJobId" placeholder="Paste job ID from step 4">
+        
+        <button onclick="matchResumeWithJob()" class="success">🎯 Match Resume with Job</button>
+        
+        <div id="matchResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>6️⃣ Delete Resume</h2>
+        <p>Delete a resume (for testing):</p>
+        
+        <label>Resume ID to Delete:</label>
+        <input type="text" id="deleteResumeId" placeholder="Paste resume ID">
+        
+        <button onclick="deleteResume()" class="danger">🗑️ Delete Resume</button>
+        
+        <div id="deleteResult"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        
+        // Check backend status on load
+        window.onload = function() {
+            checkBackend();
+            checkAuth();
+        };
+        
+        async function checkBackend() {
+            try {
+                const response = await fetch(`${API_URL}/auth/test`, { 
+                    method: 'GET',
+                    timeout: 3000 
+                }).catch(() => null);
+                
+                if (response && response.ok) {
+                    document.getElementById('backendStatus').textContent = 'Online';
+                    document.getElementById('backendStatus').className = 'status online';
+                } else {
+                    document.getElementById('backendStatus').textContent = 'Offline';
+                    document.getElementById('backendStatus').className = 'status offline';
+                }
+            } catch (e) {
+                document.getElementById('backendStatus').textContent = 'Offline';
+                document.getElementById('backendStatus').className = 'status offline';
+            }
+        }
+        
+        function checkAuth() {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                document.getElementById('authStatus').textContent = 'Logged In';
+                document.getElementById('authStatus').className = 'status online';
+            } else {
+                document.getElementById('authStatus').textContent = 'Not Logged In';
+                document.getElementById('authStatus').className = 'status offline';
+            }
+        }
+        
+        async function testLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            resultDiv.innerHTML = '<div class="result">⏳ Logging in...</div>';
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('authToken', data.token);
+                    localStorage.setItem('userRole', data.user.role);
+                    localStorage.setItem('userId', data.user.id);
+                    
+                    resultDiv.innerHTML = `<div class="result success-box">✅ Login Successful!
+                    
+User: ${data.user.name}
+Email: ${data.user.email}
+Role: ${data.user.role}
+Token: ${data.token.substring(0, 50)}...</div>`;
+                    checkAuth();
+                } else {
+                    resultDiv.innerHTML = `<div class="result error-box">❌ Login Failed: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error-box">❌ Network Error: ${error.message}
+                
+Make sure backend is running on port 5000</div>`;
+            }
+        }
+        
+        async function getAllResumes() {
+            const resultDiv = document.getElementById('getAllResult');
+            const token = localStorage.getItem('authToken');
+            
+            if (!token) {
+                resultDiv.innerHTML = '<div class="result error-box">❌ Not logged in! Please login first.</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="result">⏳ Fetching resumes...</div>';
+            
+            try {
+                const response = await fetch(`${API_URL}/resumes`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success-box">✅ Found ${data.count} resume(s)
+                    
+${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error-box">❌ Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error-box">❌ Network Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function createResume() {
+            const resultDiv = document.getElementById('createResult');
+            const token = localStorage.getItem('authToken');
+            
+            if (!token) {
+                resultDiv.innerHTML = '<div class="result error-box">❌ Not logged in! Please login first.</div>';
+                return;
+            }
+            
+            const resumeData = {
+                fileName: document.getElementById('resumeName').value,
+                content: {
+                    personalInfo: {
+                        name: document.getElementById('userName').value,
+                        email: document.getElementById('userEmail').value,
+                        phone: document.getElementById('userPhone').value,
+                        location: document.getElementById('userLocation').value,
+                        linkedin: document.getElementById('userLinkedin').value,
+                        github: document.getElementById('userGithub').value
+                    },
+                    summary: document.getElementById('userSummary').value,
+                    skills: {
+                        technical: document.getElementById('technicalSkills').value.split(',').map(s => s.trim()),
+                        tools: document.getElementById('toolsSkills').value.split(',').map(s => s.trim()),
+                        soft: document.getElementById('softSkills').value.split(',').map(s => s.trim())
+                    }
+                },
+                isPrimary: false
+            };
+            
+            resultDiv.innerHTML = '<div class="result">⏳ Creating resume...</div>';
+            
+            try {
+                const response = await fetch(`${API_URL}/resumes`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(resumeData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success-box">✅ Resume Created Successfully!
+                    
+Resume ID: ${data.resume._id}
+Resume Name: ${data.resume.fileName}
+Version: ${data.resume.version}
+
+Full Response:
+${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error-box">❌ Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error-box">❌ Network Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function getAllJobs() {
+            const resultDiv = document.getElementById('jobsResult');
+            
+            resultDiv.innerHTML = '<div class="result">⏳ Fetching jobs...</div>';
+            
+            try {
+                const response = await fetch(`${API_URL}/jobs`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success-box">✅ Found ${data.count} job(s)
+                    
+${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error-box">❌ Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error-box">❌ Network Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function matchResumeWithJob() {
+            const resultDiv = document.getElementById('matchResult');
+            const token = localStorage.getItem('authToken');
+            const resumeId = document.getElementById('matchResumeId').value;
+            const jobId = document.getElementById('matchJobId').value;
+            
+            if (!token) {
+                resultDiv.innerHTML = '<div class="result error-box">❌ Not logged in! Please login first.</div>';
+                return;
+            }
+            
+            if (!resumeId || !jobId) {
+                resultDiv.innerHTML = '<div class="result error-box">❌ Please provide both Resume ID and Job ID</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="result">⏳ Matching resume with job...</div>';
+            
+            try {
+                const response = await fetch(`${API_URL}/resumes/${resumeId}/match-job/${jobId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success-box">✅ Match Completed!
+                    
+Match Score: ${data.matchScore}%
+Matched Keywords: ${data.matchedKeywords.join(', ')}
+Missing Keywords: ${data.missingKeywords.join(', ')}
+
+Suggestions:
+${data.suggestions.join('\n')}
+
+Full Response:
+${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error-box">❌ Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error-box">❌ Network Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function deleteResume() {
+            const resultDiv = document.getElementById('deleteResult');
+            const token = localStorage.getItem('authToken');
+            const resumeId = document.getElementById('deleteResumeId').value;
+            
+            if (!token) {
+                resultDiv.innerHTML = '<div class="result error-box">❌ Not logged in! Please login first.</div>';
+                return;
+            }
+            
+            if (!resumeId) {
+                resultDiv.innerHTML = '<div class="result error-box">❌ Please provide Resume ID</div>';
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to delete this resume?')) {
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="result">⏳ Deleting resume...</div>';
+            
+            try {
+                const response = await fetch(`${API_URL}/resumes/${resumeId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success-box">✅ Resume Deleted Successfully!
+                    
+${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error-box">❌ Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error-box">❌ Network Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -24,6 +24,7 @@ router.get('/', async (req, res) => {
   try {
     const jobs = await Job.find({ isActive: true })
       .populate('company', 'companyName logo location')
+      .populate('applications.user', 'name email profilePicture college department phone')
       .sort({ createdAt: -1 });
     
     res.json({ jobs, count: jobs.length });

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { userAPI, authAPI, jobAPI } from "../../services/api";
+import ResumeBuilder from "../ResumeBuilder";
 
 export default function UserDashboard() {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export default function UserDashboard() {
   
   // Profile state
   const [profile, setProfile] = useState({
+    _id: null,
     name: "",
     college: "",
     department: "",
@@ -33,6 +35,15 @@ export default function UserDashboard() {
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
+  // Job Application state
+  const [showApplicationModal, setShowApplicationModal] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [applicationData, setApplicationData] = useState({
+    resume: "",
+    coverLetter: ""
+  });
+  const [isApplying, setIsApplying] = useState(false);
+
   // Load user profile on component mount
   useEffect(() => {
     loadUserProfile();
@@ -44,9 +55,10 @@ export default function UserDashboard() {
     setIsLoading(true);
     const result = await authAPI.getProfile();
     
-    if (result.success) {
+    if (result && result.success) {
       const userData = result.data;
       setProfile({
+        _id: userData._id || userData.id || null,
         name: userData.name || "",
         college: userData.college || "",
         department: userData.department || "",
@@ -68,10 +80,13 @@ export default function UserDashboard() {
         score: userData.score || 0,
         tasksCompleted: userData.tasksCompleted || 0
       });
+
+      // optional: keep userId for legacy code (not required)
+      if (userData._id) localStorage.setItem('userId', userData._id);
     } else {
-      console.error("Failed to load profile:", result.error);
+      console.error("Failed to load profile:", result?.error || result?.message);
       // If unauthorized, redirect to login
-      if (result.error === "No token provided" || result.error === "Invalid token") {
+      if (result?.error === "No token provided" || result?.error === "Invalid token") {
         authAPI.logout();
         navigate("/signin");
       }
@@ -81,7 +96,7 @@ export default function UserDashboard() {
 
   const loadJobs = async () => {
     const result = await jobAPI.getAllJobs();
-    if (result.success) {
+    if (result && result.success) {
       // Sort by newest first and show all jobs
       const sortedJobs = result.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setJobs(sortedJobs);
@@ -90,7 +105,7 @@ export default function UserDashboard() {
 
   const loadLeaderboard = async () => {
     const result = await userAPI.getLeaderboard();
-    if (result.success) {
+    if (result && result.success) {
       setLeaderboard(result.data);
     }
   };
@@ -100,11 +115,46 @@ export default function UserDashboard() {
     navigate("/signin");
   };
 
+  const hasChanges = () => {
+    // Compare relevant fields only
+    const base = {
+      name: profile.name,
+      email: profile.email,
+      phone: profile.phone,
+      college: profile.college,
+      department: profile.department,
+      profilePicture: profile.profilePicture,
+      skills: profile.skills || []
+    };
+    const edited = {
+      name: editProfile.name,
+      email: editProfile.email,
+      phone: editProfile.phone,
+      college: editProfile.college,
+      department: editProfile.department,
+      profilePicture: editProfile.profilePicture,
+      skills: editProfile.skills || []
+    };
+    return JSON.stringify(base) !== JSON.stringify(edited);
+  };
+
   const handleEditToggle = async () => {
     if (isEditing) {
       // Save the profile to database
+      if (!hasChanges()) {
+        // nothing changed
+        setIsEditing(false);
+        return;
+      }
+
       setIsSaving(true);
-      const userId = localStorage.getItem('userId');
+      const userId = profile._id || localStorage.getItem('userId');
+      if (!userId) {
+        alert('User id not found. Please login again.');
+        setIsSaving(false);
+        return;
+      }
+
       const result = await userAPI.updateProfile(userId, {
         name: editProfile.name,
         email: editProfile.email,
@@ -117,17 +167,29 @@ export default function UserDashboard() {
 
       setIsSaving(false);
 
-      if (result.success) {
-        setProfile({ ...editProfile });
+      if (result && result.success) {
+        // use server-canonical data when available
+        const serverUser = result.data || {
+          name: editProfile.name,
+          email: editProfile.email,
+          phone: editProfile.phone,
+          college: editProfile.college,
+          department: editProfile.department,
+          profilePicture: editProfile.profilePicture,
+          skills: editProfile.skills
+        };
+        setProfile(prev => ({ ...prev, ...serverUser }));
+        setEditProfile(prev => ({ ...prev, ...serverUser }));
+        setIsEditing(false);
         alert("Profile updated successfully!");
       } else {
-        alert("Failed to update profile: " + result.error);
+        alert("Failed to update profile: " + (result?.error || result?.message || 'Unknown error'));
       }
     } else {
       // Enter edit mode
       setEditProfile({ ...profile });
+      setIsEditing(true);
     }
-    setIsEditing(!isEditing);
   };
 
   const handleCancelEdit = () => {
@@ -136,7 +198,7 @@ export default function UserDashboard() {
   };
 
   const handleInputChange = (field, value) => {
-    setEditProfile({ ...editProfile, [field]: value });
+    setEditProfile(prev => ({ ...prev, [field]: value }));
   };
 
   const handleImageUpload = (e) => {
@@ -144,7 +206,7 @@ export default function UserDashboard() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setEditProfile({ ...editProfile, profilePicture: reader.result });
+        setEditProfile(prev => ({ ...prev, profilePicture: reader.result }));
       };
       reader.readAsDataURL(file);
     }
@@ -185,7 +247,7 @@ export default function UserDashboard() {
 
     // Add user message
     const userMsg = { role: "user", content: inputMessage };
-    setMessages([...messages, userMsg]);
+    setMessages(prev => [...prev, userMsg]);
     setInputMessage("");
     setIsTyping(true);
 
@@ -202,6 +264,47 @@ export default function UserDashboard() {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  // Job Application functions
+  const handleOpenApplicationModal = (job) => {
+    setSelectedJob(job);
+    setShowApplicationModal(true);
+    setApplicationData({
+      resume: "",
+      coverLetter: ""
+    });
+  };
+
+  const handleCloseApplicationModal = () => {
+    setShowApplicationModal(false);
+    setSelectedJob(null);
+    setApplicationData({
+      resume: "",
+      coverLetter: ""
+    });
+  };
+
+  const handleApplicationSubmit = async (e) => {
+    e.preventDefault();
+    setIsApplying(true);
+
+    try {
+      const result = await jobAPI.applyForJob(selectedJob._id, applicationData);
+      
+      if (result.success) {
+        alert(`✅ Successfully applied for ${selectedJob.title}!\n\nYour application has been submitted and is pending review.`);
+        handleCloseApplicationModal();
+        // Reload jobs to update application status
+        loadJobs();
+      } else {
+        alert(`❌ Application failed: ${result.error}`);
+      }
+    } catch (error) {
+      alert(`❌ Error: ${error.message}`);
+    } finally {
+      setIsApplying(false);
     }
   };
 
@@ -223,7 +326,7 @@ export default function UserDashboard() {
                 )}
                 <button
                   onClick={handleEditToggle}
-                  disabled={isSaving}
+                  disabled={isSaving || (isEditing && !hasChanges())}
                   className={`px-4 py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed ${
                     isEditing
                       ? "bg-green-600 hover:bg-green-700"
@@ -473,37 +576,8 @@ export default function UserDashboard() {
         );
 
       case "resume-generation":
-        return (
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Resume Generation</h2>
-            <p className="text-gray-400 mb-6">Create professional resumes with AI assistance.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Resume Templates</h3>
-                <div className="space-y-3">
-                  <div className="bg-gray-700 p-4 rounded-lg hover:bg-gray-600 cursor-pointer transition">
-                    <h4 className="font-medium">Modern Template</h4>
-                    <p className="text-sm text-gray-400">Clean and professional design</p>
-                  </div>
-                  <div className="bg-gray-700 p-4 rounded-lg hover:bg-gray-600 cursor-pointer transition">
-                    <h4 className="font-medium">Creative Template</h4>
-                    <p className="text-sm text-gray-400">Stand out with unique design</p>
-                  </div>
-                  <div className="bg-gray-700 p-4 rounded-lg hover:bg-gray-600 cursor-pointer transition">
-                    <h4 className="font-medium">Classic Template</h4>
-                    <p className="text-sm text-gray-400">Traditional and elegant</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold mb-4">Preview</h3>
-                <div className="bg-white text-black p-4 rounded min-h-96">
-                  <p className="text-center text-gray-500">Select a template to preview</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
+        // Use the unified, fully-featured ResumeBuilder component
+        return <ResumeBuilder />;
 
       case "job-placement":
         return (
@@ -557,7 +631,7 @@ export default function UserDashboard() {
                         </div>
                       </div>
                       <button 
-                        onClick={() => alert('Application feature coming soon!')}
+                        onClick={() => handleOpenApplicationModal(job)}
                         className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg transition font-semibold whitespace-nowrap"
                       >
                         Apply Now
@@ -615,7 +689,7 @@ export default function UserDashboard() {
                 leaderboard.map((user, index) => {
                   const rank = index + 1;
                   let badge = "";
-                  if (rank === 1) badge = "�";
+                  if (rank === 1) badge = "🥇";
                   else if (rank === 2) badge = "🥈";
                   else if (rank === 3) badge = "🥉";
 
@@ -648,6 +722,21 @@ export default function UserDashboard() {
           </div>
         );
 
+      case "resume-generation":
+        return <ResumeBuilder />;
+
+      case "image-generation":
+        return (
+          <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+            <h2 className="text-2xl font-bold mb-4">🎨 Image Generation</h2>
+            <p className="text-gray-400 mb-6">Generate AI-powered images for your projects.</p>
+            <div className="text-center py-12">
+              <p className="text-gray-400 text-lg">Coming Soon!</p>
+              <p className="text-gray-500 text-sm mt-2">AI image generation feature will be available soon.</p>
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -674,7 +763,7 @@ export default function UserDashboard() {
             className={`w-full text-left px-4 py-3 rounded-lg transition ${
               activeSection === "ai-assistant"
                 ? "bg-blue-600 text-white"
-                : "bg-gray-700 hover:bg-gray-600"
+                : "bg_GRAY-700 hover:bg-gray-600"
             }`}
           >
             🤖 AI Assistant
@@ -732,6 +821,140 @@ export default function UserDashboard() {
       <main className="flex-1 p-6 overflow-y-auto">
         {renderContent()}
       </main>
+
+      {/* Job Application Modal */}
+      {showApplicationModal && selectedJob && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Modal Header */}
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold mb-2">Apply for Position</h3>
+                  <p className="text-xl text-blue-400">{selectedJob.title}</p>
+                  <p className="text-gray-400">{selectedJob.companyName}</p>
+                </div>
+                <button
+                  onClick={handleCloseApplicationModal}
+                  className="text-gray-400 hover:text-white text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Job Summary */}
+              <div className="bg-gray-700 p-4 rounded-lg mb-6">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-400">Location</p>
+                    <p className="font-semibold">{selectedJob.location}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Type</p>
+                    <p className="font-semibold">{selectedJob.jobType}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Experience</p>
+                    <p className="font-semibold">{selectedJob.experienceLevel}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Salary Range</p>
+                    <p className="font-semibold">
+                      ${selectedJob.salaryMin?.toLocaleString()} - ${selectedJob.salaryMax?.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Application Form */}
+              <form onSubmit={handleApplicationSubmit} className="space-y-4">
+                {/* Resume URL/Text */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    Resume/CV Link or Text <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={applicationData.resume}
+                    onChange={(e) => setApplicationData(prev => ({
+                      ...prev,
+                      resume: e.target.value
+                    }))}
+                    className="w-full bg-gray-700 px-4 py-3 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows="4"
+                    placeholder="Paste your resume link (Google Drive, Dropbox) or enter a brief summary of your qualifications..."
+                    required
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Tip: Upload your resume to Google Drive and share the link, or paste key highlights
+                  </p>
+                </div>
+
+                {/* Cover Letter */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    Cover Letter (Optional)
+                  </label>
+                  <textarea
+                    value={applicationData.coverLetter}
+                    onChange={(e) => setApplicationData(prev => ({
+                      ...prev,
+                      coverLetter: e.target.value
+                    }))}
+                    className="w-full bg-gray-700 px-4 py-3 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows="6"
+                    placeholder="Why are you interested in this position? What makes you a great fit?"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    A well-written cover letter increases your chances!
+                  </p>
+                </div>
+
+                {/* Required Skills Display */}
+                {selectedJob.skills && selectedJob.skills.length > 0 && (
+                  <div className="bg-gray-700 p-4 rounded-lg">
+                    <p className="text-sm font-semibold mb-2">Required Skills:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedJob.skills.map((skill, idx) => (
+                        <span key={idx} className="bg-blue-600 px-3 py-1 rounded-full text-xs">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="submit"
+                    disabled={isApplying || !applicationData.resume}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    {isApplying ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Submitting...
+                      </span>
+                    ) : (
+                      "Submit Application"
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCloseApplicationModal}
+                    className="px-6 py-3 bg-gray-600 hover:bg-gray-700 rounded-lg font-semibold transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

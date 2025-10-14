@@ -1,7 +1,8 @@
 import { useState } from "react";
 import Spline from "@splinetool/react-spline";
 import "boxicons/css/boxicons.min.css";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -12,8 +13,12 @@ const SignUp = () => {
   });
 
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const navigate = useNavigate();
 
   const validate = () => {
     let tempErrors = {};
@@ -63,12 +68,65 @@ const SignUp = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Clear field-level error for this field when user edits it
+    setErrors((prev) => ({ ...prev, [e.target.name]: undefined }));
+    setServerError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validate()) {
-      alert(" Sign Up successful!");
+    setServerError("");
+    if (!validate()) return;
+
+    setLoading(true);
+    try {
+      const payload = {
+        name: formData.username, // backend expects `name`
+        email: formData.email,
+        password: formData.password,
+        role: "user"
+      };
+
+      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const res = await axios.post(`${baseUrl}/api/auth/register`, payload, {
+        headers: { "Content-Type": "application/json" },
+        timeout: 10000
+      });
+
+      // On success: store token (if returned) and redirect
+      if (res?.data?.token) {
+        localStorage.setItem("token", res.data.token);
+      }
+      // Optionally show a success toast/modal — here we redirect to signin
+      navigate("/signin");
+    } catch (err) {
+      // err.response may be undefined on network error
+      const resp = err.response;
+      if (resp && resp.data) {
+        // If express-validator returned errors array
+        if (Array.isArray(resp.data.errors)) {
+          const newErrors = {};
+          resp.data.errors.forEach((e) => {
+            // map param to field if matches form field names
+            // backend validation uses 'name' param for username -> map to username
+            const param = e.param === "name" ? "username" : e.param;
+            newErrors[param] = e.msg;
+          });
+          setErrors(newErrors);
+        } else if (resp.data.message) {
+          setServerError(resp.data.message);
+        } else {
+          // Fallback: stringify small object
+          setServerError(JSON.stringify(resp.data).slice(0, 200));
+        }
+      } else if (err.code === "ECONNABORTED") {
+        setServerError("Request timed out. Please try again.");
+      } else {
+        setServerError("Network or server error. Please try again.");
+      }
+      console.error("Registration error (frontend):", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,13 +134,17 @@ const SignUp = () => {
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="relative flex flex-col m-6 space-y-8 bg-orange shadow-2xl rounded-2xl md:flex-row md:space-y-0">
         {/* left side */}
-        <form data-aos="zoom-in" data-aos-duration="1800" onSubmit={handleSubmit} className="flex flex-col justify-center p-8 md:p-14 shadow-[0_0_1500px_20px_#e99b63] ">
-          <span className="mb-3 text-4xl font-bold text-black">
-            Create Account
-          </span>
-          <span className="font-light text-black mb-8">
-            Sign up to get started with Placify 🚀
-          </span>
+        <form
+          data-aos="zoom-in"
+          data-aos-duration="1800"
+          onSubmit={handleSubmit}
+          className="flex flex-col justify-center p-8 md:p-14 shadow-[0_0_1500px_20px_#e99b63] "
+        >
+          <span className="mb-3 text-4xl font-bold text-black">Create Account</span>
+          <span className="font-light text-black mb-8">Sign up to get started with Placify 🚀</span>
+
+          {/* server-level error */}
+          {serverError && <div className="mb-3 text-red-600 text-sm">{serverError}</div>}
 
           {/* Email */}
           <div className="py-2">
@@ -92,13 +154,9 @@ const SignUp = () => {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className={`w-full p-2 border ${
-                errors.email ? "border-red-500" : "border-gray-300"
-              } rounded-md placeholder:font-light placeholder:text-gray-500 text-black`}
+              className={`w-full p-2 border ${errors.email ? "border-red-500" : "border-gray-300"} rounded-md placeholder:font-light placeholder:text-gray-500 text-black`}
             />
-            {errors.email && (
-              <p className="text-red-500 text-sm">{errors.email}</p>
-            )}
+            {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
           </div>
 
           {/* Username */}
@@ -109,13 +167,9 @@ const SignUp = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
-              className={`w-full p-2 border ${
-                errors.username ? "border-red-500" : "border-gray-300"
-              } rounded-md placeholder:font-light placeholder:text-gray-500 text-black`}
+              className={`w-full p-2 border ${errors.username ? "border-red-500" : "border-gray-300"} rounded-md placeholder:font-light placeholder:text-gray-500 text-black`}
             />
-            {errors.username && (
-              <p className="text-red-500 text-sm">{errors.username}</p>
-            )}
+            {errors.username && <p className="text-red-500 text-sm">{errors.username}</p>}
           </div>
 
           {/* Password */}
@@ -127,25 +181,17 @@ const SignUp = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className={`w-full p-2 border ${
-                  errors.password ? "border-red-500" : "border-gray-300"
-                } rounded-md placeholder:font-light placeholder:text-gray-500 text-black`}
+                className={`w-full p-2 border ${errors.password ? "border-red-500" : "border-gray-300"} rounded-md placeholder:font-light placeholder:text-gray-500 text-black`}
               />
               <button
                 type="button"
                 className="absolute right-2 top-2 text-gray-600"
                 onClick={() => setShowPassword(!showPassword)}
               >
-                <i
-                  className={`bx ${
-                    showPassword ? "bx-hide" : "bx-show"
-                  } text-xl`}
-                ></i>
+                <i className={`bx ${showPassword ? "bx-hide" : "bx-show"} text-xl`}></i>
               </button>
             </div>
-            {errors.password && (
-              <p className="text-red-500 text-sm">{errors.password}</p>
-            )}
+            {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
           </div>
 
           {/* Confirm Password */}
@@ -157,42 +203,31 @@ const SignUp = () => {
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className={`w-full p-2 border ${
-                  errors.confirmPassword ? "border-red-500" : "border-gray-300"
-                } rounded-md placeholder:font-light placeholder:text-gray-500 text-black`}
+                className={`w-full p-2 border ${errors.confirmPassword ? "border-red-500" : "border-gray-300"} rounded-md placeholder:font-light placeholder:text-gray-500 text-black`}
               />
               <button
                 type="button"
                 className="absolute right-2 top-2 text-gray-600"
-                onClick={() =>
-                  setShowConfirmPassword(!showConfirmPassword)
-                }
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               >
-                <i
-                  className={`bx ${
-                    showConfirmPassword ? "bx-hide" : "bx-show"
-                  } text-xl`}
-                ></i>
+                <i className={`bx ${showConfirmPassword ? "bx-hide" : "bx-show"} text-xl`}></i>
               </button>
             </div>
-            {errors.confirmPassword && (
-              <p className="text-red-500 text-sm">{errors.confirmPassword}</p>
-            )}
+            {errors.confirmPassword && <p className="text-red-500 text-sm">{errors.confirmPassword}</p>}
           </div>
 
           {/* Submit */}
           <button
             type="submit"
-            className="w-full bg-black text-white p-2 mt-4 rounded-lg mb-6 hover:bg-white hover:text-black hover:border hover:border-gray-300"
+            disabled={loading}
+            className="w-full bg-black text-white p-2 mt-4 rounded-lg mb-6 hover:bg-white hover:text-black hover:border hover:border-gray-300 disabled:opacity-50"
           >
-            Sign Up
+            {loading ? "Signing up..." : "Sign Up"}
           </button>
 
           <div className="text-center text-black">
             Already have an account?{" "}
-            <Link to="/signin" className="font-bold text-black cursor-pointer">
-              Sign in
-            </Link>
+            <Link to="/signin" className="font-bold text-black cursor-pointer">Sign in</Link>
           </div>
         </form>
 

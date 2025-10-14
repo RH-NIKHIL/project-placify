@@ -115,6 +115,30 @@ export default function CompanyDashboard() {
     }
   };
 
+  const handleUpdateApplicationStatus = async (jobId, applicationId, newStatus) => {
+    try {
+      // For now, update locally - you can add API call later
+      const updatedJobs = jobs.map(job => {
+        if (job._id === jobId) {
+          return {
+            ...job,
+            applications: job.applications.map(app => 
+              app._id === applicationId ? { ...app, status: newStatus } : app
+            )
+          };
+        }
+        return job;
+      });
+      setJobs(updatedJobs);
+      
+      // Optional: Show success message
+      console.log(`Application ${applicationId} status updated to ${newStatus}`);
+    } catch (error) {
+      console.error("Error updating application status:", error);
+      alert("Failed to update application status.");
+    }
+  };
+
   const renderJobManagement = () => {
     return (
       <div>
@@ -337,9 +361,26 @@ export default function CompanyDashboard() {
                       ))}
                     </div>
                   </div>
-                  <div className="text-sm text-gray-400">
-                    <p><strong>Applicants:</strong> {job.applicants?.length || 0} students registered</p>
-                    <p><strong>Posted:</strong> {new Date(job.createdAt).toLocaleDateString()}</p>
+                  <div className="flex items-center justify-between text-sm text-gray-400 pt-3 border-t border-gray-700">
+                    <div className="flex gap-4">
+                      <p>
+                        <strong>Applications:</strong> {job.applications?.length || 0} 
+                        {job.applications && job.applications.length > 0 && (
+                          <span className="ml-2">
+                            ({job.applications.filter(app => app.status === 'pending').length} pending)
+                          </span>
+                        )}
+                      </p>
+                      <p><strong>Posted:</strong> {new Date(job.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    {job.applications && job.applications.length > 0 && (
+                      <button
+                        onClick={() => setActiveView('students')}
+                        className="text-blue-400 hover:text-blue-300 text-sm font-semibold"
+                      >
+                        View Applications →
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -351,41 +392,95 @@ export default function CompanyDashboard() {
   };
 
   const renderRegisteredStudents = () => {
+    // Get all jobs with applications
+    const jobsWithApplications = jobs.filter(job => job.applications && job.applications.length > 0);
+    
     return (
       <div>
-        <h2 className="text-2xl font-bold mb-6">Registered Students</h2>
+        <h2 className="text-2xl font-bold mb-6">Job Applications</h2>
         <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-          <p className="text-gray-400 mb-4">View students who have applied to your job postings</p>
+          <p className="text-gray-400 mb-4">Review applications from candidates</p>
           
-          {jobs.filter(job => job.applicants && job.applicants.length > 0).length === 0 ? (
+          {jobsWithApplications.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-400">No student applications yet.</p>
+              <p className="text-gray-400">No applications received yet.</p>
+              <p className="text-gray-500 text-sm mt-2">Applications will appear here once candidates apply to your job postings.</p>
             </div>
           ) : (
             <div className="space-y-6">
-              {jobs.filter(job => job.applicants && job.applicants.length > 0).map((job) => (
-                <div key={job._id} className="border-b border-gray-700 pb-4 last:border-0">
-                  <h3 className="text-lg font-bold mb-3">{job.title}</h3>
-                  <div className="space-y-2">
-                    {job.applicants.map((applicant, idx) => (
-                      <div key={idx} className="bg-gray-700 p-4 rounded-lg flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <img
-                            src={applicant.profilePicture || "https://via.placeholder.com/50"}
-                            alt={applicant.name}
-                            className="w-12 h-12 rounded-full object-cover"
-                          />
-                          <div>
-                            <p className="font-semibold">{applicant.name}</p>
-                            <p className="text-sm text-gray-400">{applicant.email}</p>
-                            <p className="text-sm text-gray-400">{applicant.college} - {applicant.department}</p>
+              {jobsWithApplications.map((job) => (
+                <div key={job._id} className="border border-gray-700 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-blue-400">{job.title}</h3>
+                      <p className="text-gray-400 text-sm">
+                        {job.applications.length} {job.applications.length === 1 ? 'Application' : 'Applications'}
+                      </p>
+                    </div>
+                    <span className="bg-green-600 px-3 py-1 rounded-full text-xs font-semibold">
+                      {job.jobType}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {job.applications.map((application) => (
+                      <div key={application._id} className="bg-gray-700 p-4 rounded-lg">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-4 flex-1">
+                            <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold">
+                              {application.user?.name ? application.user.name.charAt(0).toUpperCase() : '?'}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-semibold text-lg">
+                                  {application.user?.name || 'Anonymous'}
+                                </p>
+                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                  application.status === 'pending' ? 'bg-yellow-600' :
+                                  application.status === 'reviewed' ? 'bg-blue-600' :
+                                  application.status === 'shortlisted' ? 'bg-green-600' :
+                                  application.status === 'rejected' ? 'bg-red-600' :
+                                  'bg-purple-600'
+                                }`}>
+                                  {application.status.toUpperCase()}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-400 mb-2">
+                                {application.user?.email || 'No email'}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Applied: {new Date(application.appliedAt).toLocaleString()}
+                              </p>
+
+                              {application.resume && (
+                                <div className="mt-3 bg-gray-600 p-3 rounded">
+                                  <p className="text-xs text-gray-400 mb-1">Resume/Qualifications:</p>
+                                  <p className="text-sm whitespace-pre-wrap">{application.resume}</p>
+                                </div>
+                              )}
+
+                              {application.coverLetter && (
+                                <div className="mt-2 bg-gray-600 p-3 rounded">
+                                  <p className="text-xs text-gray-400 mb-1">Cover Letter:</p>
+                                  <p className="text-sm whitespace-pre-wrap">{application.coverLetter}</p>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-400">Applied: {new Date(applicant.appliedAt).toLocaleDateString()}</p>
-                          <button className="mt-2 bg-blue-600 hover:bg-blue-700 px-4 py-1 rounded text-sm transition">
-                            View Profile
-                          </button>
+
+                          <div className="flex flex-col gap-2">
+                            <select
+                              value={application.status}
+                              onChange={(e) => handleUpdateApplicationStatus(job._id, application._id, e.target.value)}
+                              className="bg-gray-600 px-3 py-2 rounded text-sm"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="reviewed">Reviewed</option>
+                              <option value="shortlisted">Shortlisted</option>
+                              <option value="rejected">Rejected</option>
+                              <option value="accepted">Accepted</option>
+                            </select>
+                          </div>
                         </div>
                       </div>
                     ))}

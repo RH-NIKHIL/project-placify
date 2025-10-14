@@ -1,0 +1,49 @@
+# Resume Builder Tabs - Quick Fix ✅
+
+## The Problem
+When clicking tabs in Resume Builder, nothing was showing.
+
+## The Solution
+✅ Added proper error handling for jobs loading
+✅ Added fallback messages for empty states
+✅ Added debug logging to track issues
+
+## Test Now!
+
+1. **Open http://localhost:5173**
+2. **Press F12** (open browser console)
+3. **Login:** `user@user.com` / `user123`
+4. **Go to Resume Builder**
+5. **Click each tab:**
+   - "My Resumes" → Shows resumes or "Create First"
+   - "Match with Jobs" → Shows jobs or "No jobs available"
+   - "ATS Tips" → **ALWAYS shows 5 tips** ✨
+
+## What to Look For
+
+In the **browser console** (F12):
+```
+🔄 ResumeBuilder mounted, loading data...
+📄 Loading resumes...
+✅ Loaded 2 resumes
+💼 Loading jobs...
+✅ Loaded 3 jobs
+🔵 Switching to ATS Tips tab
+```
+
+## Still Not Working?
+
+**Try this:**
+1. Hard refresh: `Ctrl + Shift + R`
+2. Clear cache in console: `localStorage.clear(); location.reload();`
+3. Check console for red errors
+4. Make sure both servers are running
+
+## Create Test Data
+
+**No resumes?** → Click "Create New Resume" button
+**No jobs?** → Login as company and post a job
+
+---
+
+See `TABS_NOT_SHOWING_FIX.md` for detailed guide.

@@ -6,136 +6,178 @@ import { authAPI } from "../services/api";
 const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState({});
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const validate = () => {
-    let tempErrors = {};
-    let isValid = true;
-
-    if (!email) {
-      tempErrors.email = "Email is required";
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      tempErrors.email = "Email is invalid";
-      isValid = false;
-    }
-
-    if (!password) {
-      tempErrors.password = "Password is required";
-      isValid = false;
-    } else if (password.length < 6) {
-      tempErrors.password = "Password must be at least 6 characters";
-      isValid = false;
-    }
-
-    setErrors(tempErrors);
-    return isValid;
+  // Quick login function for demo credentials
+  const quickLogin = (demoEmail, demoPassword) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setErrorMessage("");
+    setSuccessMessage("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validate()) {
-      setIsLoading(true);
-      setErrors({});
+    setErrorMessage("");
+    setSuccessMessage("");
 
+    // Basic validation
+    if (!email || !password) {
+      setErrorMessage("Please enter both email and password");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      console.log("🔑 Logging in with:", email);
+      
       // Call login API
       const result = await authAPI.login(email, password);
 
-      setIsLoading(false);
-
       if (result.success) {
-        const { user } = result.data;
+        const { user, token } = result.data;
         
-        // Show success message with role
-        alert(`✅ Successfully logged in as ${user.role.toUpperCase()}\n\nEmail: ${user.email}\nName: ${user.name}`);
+        console.log("✅ Login successful:", user);
+        setSuccessMessage(`Welcome ${user.name}! Redirecting to ${user.role} dashboard...`);
         
-        // Redirect based on role from database
-        if (user.role === "admin") {
-          navigate("/admin-dashboard");
-        } else if (user.role === "company") {
-          navigate("/company-dashboard");
-        } else {
-          navigate("/user-dashboard");
-        }
+        // Store user info in localStorage
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('userRole', user.role);
+        localStorage.setItem('userId', user.id);
+        localStorage.setItem('userName', user.name);
+        localStorage.setItem('userEmail', user.email);
+        
+        // Redirect based on role after a short delay
+        setTimeout(() => {
+          if (user.role === "admin") {
+            navigate("/admin-dashboard");
+          } else if (user.role === "company") {
+            navigate("/company-dashboard");
+          } else {
+            navigate("/user-dashboard");
+          }
+        }, 1000);
       } else {
-        setErrors({ login: result.error || "Invalid email or password" });
+        console.error("❌ Login failed:", result.error);
+        setErrorMessage(result.error || "Invalid email or password. Please try again.");
       }
+    } catch (error) {
+      console.error("❌ Login error:", error);
+      setErrorMessage("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="relative flex flex-col m-6 space-y-8 bg-orange shadow-2xl rounded-2xl md:flex-row md:space-y-0">
         {/* left side */}
-        <form data-aos="zoom-in" data-aos-duration="1800" onSubmit={handleSubmit} className="flex flex-col justify-center p-8 md:p-14 shadow-[0_0_1500px_20px_#e99b63] ">
+        <form 
+          data-aos="zoom-in" 
+          data-aos-duration="1800" 
+          onSubmit={handleSubmit} 
+          className="flex flex-col justify-center p-8 md:p-14 shadow-[0_0_1500px_20px_#e99b63]"
+        >
           <span className="mb-3 text-4xl font-bold text-black">
             Welcome back
           </span>
-          <span className="font-light text-black mb-8">
-            Welcome back! Please enter your details
+          <span className="font-light text-black mb-6">
+            Please enter your details to sign in
           </span>
 
-          {/* Login Error */}
-          {errors.login && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {errors.login}
+          {/* Success Message */}
+          {successMessage && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+              <p className="font-bold">✅ Success!</p>
+              <p className="text-sm">{successMessage}</p>
             </div>
           )}
 
-          {/* Demo Credentials Info */}
-          <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-4 text-sm">
-            <p className="font-bold mb-2">Demo Credentials:</p>
-            <p><strong>Admin:</strong> admin@admin.com / admin123</p>
-            <p><strong>Company:</strong> company@company.com / company123</p>
-            <p><strong>User:</strong> user@user.com / user123</p>
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              <p className="font-bold">⚠️ Login Failed</p>
+              <p className="text-sm">{errorMessage}</p>
+            </div>
+          )}
+
+          {/* Demo Credentials - Quick Login Buttons */}
+          <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 mb-4">
+            <p className="font-bold text-blue-900 mb-3 text-sm">🎯 Quick Login (Demo Accounts):</p>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => quickLogin("admin@admin.com", "admin123")}
+                className="w-full bg-purple-600 text-white text-sm py-2 px-4 rounded hover:bg-purple-700 transition"
+              >
+                👑 Admin Login
+              </button>
+              <button
+                type="button"
+                onClick={() => quickLogin("company@company.com", "company123")}
+                className="w-full bg-blue-600 text-white text-sm py-2 px-4 rounded hover:bg-blue-700 transition"
+              >
+                🏢 Company Login
+              </button>
+              <button
+                type="button"
+                onClick={() => quickLogin("user@user.com", "user123")}
+                className="w-full bg-green-600 text-white text-sm py-2 px-4 rounded hover:bg-green-700 transition"
+              >
+                👤 User Login
+              </button>
+            </div>
           </div>
 
-          {/* Email */}
-          <div className="py-4">
-            <span className="mb-2 text-md text-black">Email</span>
+          {/* Email Input */}
+          <div className="mb-4">
+            <label className="block mb-2 text-sm font-medium text-black">
+              Email Address
+            </label>
             <input
-              type="text"
-              className={`w-full p-2 border ${
-                errors.email ? "border-red-500" : "border-gray-300"
-              } rounded-md placeholder:font-light placeholder:text-gray-500 text-black`}
-              name="email"
-              id="email"
+              type="email"
+              className="w-full p-3 border border-gray-300 rounded-lg placeholder:text-gray-400 text-black focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              required
             />
-            {errors.email && (
-              <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-            )}
           </div>
 
-          {/* Password */}
-          <div className="py-4">
-            <span className="mb-2 text-md text-black">Password</span>
+          {/* Password Input */}
+          <div className="mb-4">
+            <label className="block mb-2 text-sm font-medium text-black">
+              Password
+            </label>
             <input
               type="password"
-              name="pass"
-              id="pass"
-              className={`w-full p-2 border ${
-                errors.password ? "border-red-500" : "border-gray-300"
-              } rounded-md placeholder:font-light placeholder:text-gray-500 text-black`}
+              className="w-full p-3 border border-gray-300 rounded-lg placeholder:text-gray-400 text-black focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
             />
-            {errors.password && (
-              <p className="text-red-500 text-sm mt-1">{errors.password}</p>
-            )}
           </div>
 
-          <div className="flex justify-between w-full py-4">
-            <div className="mr-24">
-              <input type="checkbox" name="ch" id="ch" className="mr-2" />
-              <span className="text-md text-black">Remember for 30 days</span>
+          {/* Remember Me & Forgot Password */}
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center">
+              <input 
+                type="checkbox" 
+                id="remember" 
+                className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
+              />
+              <label htmlFor="remember" className="ml-2 text-sm text-black">
+                Remember me
+              </label>
             </div>
-            <span className="font-bold text-md cursor-pointer text-black">
-              Forgot password
+            <span className="text-sm font-medium text-black hover:underline cursor-pointer">
+              Forgot password?
             </span>
           </div>
 
@@ -143,14 +185,25 @@ const SignIn = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-black text-white p-2 rounded-lg mb-6 hover:bg-white hover:text-black hover:border hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Signing in..." : "Sign in"}
+            {isLoading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Signing in...
+              </span>
+            ) : (
+              "Sign In"
+            )}
           </button>
 
-          <div className="text-center text-black">
+          {/* Sign Up Link */}
+          <div className="text-center text-black mt-6">
             Don't have an account?{" "}
-            <Link to="/signup" className="font-bold text-black cursor-pointer">
+            <Link to="/signup" className="font-bold text-black hover:underline">
               Sign up for free
             </Link>
           </div>
@@ -158,8 +211,12 @@ const SignIn = () => {
 
         {/* right side */}
         <div className="relative flex items-center justify-center p-6">
-          <div className="w-[350px] h-[400px] md:w-[400px] md:h-[450px] ">
-            <Spline data-aos="zoom-out" data-aos-duration="1500" scene="https://prod.spline.design/QOfjgaaQWCrmXmzn/scene.splinecode" />
+          <div className="w-[350px] h-[400px] md:w-[400px] md:h-[450px]">
+            <Spline 
+              data-aos="zoom-out" 
+              data-aos-duration="1500" 
+              scene="https://prod.spline.design/QOfjgaaQWCrmXmzn/scene.splinecode" 
+            />
           </div>
         </div>
       </div>
